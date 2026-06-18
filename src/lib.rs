@@ -1,5 +1,4 @@
 mod render;
-mod terrain;
 
 use wasm_bindgen::prelude::*;
 #[wasm_bindgen(start)]
