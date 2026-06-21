@@ -9,10 +9,14 @@ use wasm_bindgen::JsCast;
 
 const WIDTH: u32 = 500;
 const HEIGHT: u32 = 500;
-const SEED: u32 = 42;
+const SEED: u32 = 45;
 
+// TODO: Clean this up
 enum RenderMethod {
+    #[allow(dead_code)]
     Colors,
+
+    #[allow(dead_code)]
     Values,
 }
 
