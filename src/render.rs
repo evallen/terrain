@@ -37,6 +37,9 @@ pub fn init() -> Result<(), JsValue> {
 
     let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
 
+    canvas.set_width(WIDTH);
+    canvas.set_height(HEIGHT);
+
     let ctx = canvas
         .get_context("2d")?
         .expect("Couldn't get 2D canvas context")
