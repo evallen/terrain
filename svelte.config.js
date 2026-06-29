@@ -1,3 +1,5 @@
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+
 export default {
-    // Stub
+    preprocess: vitePreprocess(),
 }

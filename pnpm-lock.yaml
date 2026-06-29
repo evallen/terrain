@@ -11,6 +11,9 @@ importers:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.1.2
         version: 7.1.2(svelte@5.56.4)(vite@8.0.16)
+      svelte:
+        specifier: ^5.56.4
+        version: 5.56.4
       typescript:
         specifier: ~6.0.2
         version: 6.0.3
