@@ -1,15 +1,26 @@
-const CANVAS_ID = "canvas";
-const CANVAS_VIEWPORT_ID = "canvas-viewport";
-
 const ZOOM_STEP = 1.2;
+
+const ZOOM_MAX = 25;
+const ZOOM_MIN = 0.1;
 
 // =================================================================================================
 
+export type Transform = {
+    scale: number,
+    translate: {
+        x: number,
+        y: number
+    };
+}
+
 /** Class for handling movement of the canvas. */
-class Mover {
+export class Mover {
 
     /** The canvas object holding the map. */
     canvas: HTMLCanvasElement;
+
+    /** The object holding the canvas. */
+    canvasViewport: HTMLElement;
 
     /** Starting clientX coordinate of the mouse upon drag. */
     startX: number = 0;
@@ -20,31 +31,32 @@ class Mover {
     /** Whether or not the user is dragging. */
     isDragging: boolean;
 
+    /** Transform of the canvas. */
+    canvasTransform: Transform;
+
     // === CONSTRUCTOR ============================================================================
 
-    constructor() {
-        this.canvas = document.getElementById(CANVAS_ID) as HTMLCanvasElement;
+    constructor(canvasViewport: HTMLDivElement, canvas: HTMLCanvasElement, canvasTransform: Transform) {
+        this.canvas = canvas;
+        this.canvasViewport = canvasViewport;
+        this.canvasTransform = canvasTransform;
         this.isDragging = false;
+
+        this.attachCanvasListeners();
+    }
+
+    attachCanvasListeners() {
+        this.canvasViewport.addEventListener("pointerdown", this.pointerDownListener);
+        this.canvasViewport.addEventListener("pointermove", this.pointerMoveListener);
+
+        this.canvasViewport.addEventListener("pointerup", this.pointerDoneListener);
+        this.canvasViewport.addEventListener("pointercancel", this.pointerDoneListener);
+        this.canvasViewport.addEventListener("pointerleave", this.pointerDoneListener);
+
+        this.canvasViewport.addEventListener("wheel", this.wheelListener);
     }
 
     // === UTILITIES ==============================================================================
-
-    /**
-     * Get the current transform matrix of the canvas.
-     * @returns The canvas's transform matrix.
-     */
-    getTransformMatrix(): DOMMatrix {
-        return new DOMMatrix(window.getComputedStyle(this.canvas).transform);
-    }
-
-    /**
-     * Apply a transform matrix to the canvas's actual transform
-     * property.
-     * @param matrix The transform matrix.
-     */
-    applyTransformMatrix(matrix: DOMMatrix) {
-        this.canvas.style.transform = matrix.toString();
-    }
 
     /**
      * Pan the canvas a certain number of pixels in
@@ -53,12 +65,12 @@ class Mover {
      * @param y Pixels in the y direction to pan.
      */
     pan(x: number, y: number) {
-        let matrix = this.getTransformMatrix();
+        let transform = this.canvasTransform;
 
-        matrix.e += x;
-        matrix.f += y;
+        transform.translate.x += x;
+        transform.translate.y += y;
 
-        this.applyTransformMatrix(matrix);
+        this.canvasTransform = transform;
     }
 
     /**
@@ -66,11 +78,7 @@ class Mover {
      * @param factor The scale to multiply the current transform matrix by.
      */
     zoomBy(factor: number) {
-        let matrix = this.getTransformMatrix();
-
-        matrix = matrix.scale(factor, factor);
-
-        this.applyTransformMatrix(matrix)
+        this.canvasTransform.scale *= factor;
     }
 
     /**
@@ -103,9 +111,9 @@ class Mover {
      *                    This point should not move on screen after the zoom.
      */
     zoomByToCanvasPoint(factor: number, canvasPoint: { x: number, y: number }) {
-        let matrix = this.getTransformMatrix();
+        let canvasTransform = this.canvasTransform;
 
-        matrix = matrix.scale(factor, factor);
+        canvasTransform.scale *= factor;
 
         // The key property of this function is that it *doesn't move
         // whatever pixel the mouse is on.*
@@ -124,10 +132,16 @@ class Mover {
         const diffX = xAfterScaling - canvasPoint.x;
         const diffY = yAfterScaling - canvasPoint.y;
 
-        matrix.e -= diffX;
-        matrix.f -= diffY;
+        canvasTransform.translate.x -= diffX;
+        canvasTransform.translate.y -= diffY;
 
-        this.applyTransformMatrix(matrix);
+        this.canvasTransform = canvasTransform;
+    }
+
+    constrainZoomFactor(factor: number): number {
+        const newScale = this.canvasTransform.scale * factor;
+        const correctedScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, newScale));
+        return correctedScale / this.canvasTransform.scale;
     }
 
     // === LISTENERS ==============================================================================
@@ -166,26 +180,9 @@ class Mover {
             delta = ev.deltaX;
         }
 
-        // const step = ZOOM_STEP * Math.exp(delta / 300);
         const step = Math.pow(ZOOM_STEP, -delta / 100);
 
-        // this.zoomBy(step);
-        this.zoomByToViewportPoint(step, { x: ev.clientX, y: ev.clientY })
+        const correctedStep = this.constrainZoomFactor(step);
+        this.zoomByToViewportPoint(correctedStep, { x: ev.clientX, y: ev.clientY })
     }
-}
-
-// =================================================================================================
-
-export function attachCanvasListeners() {
-    let canvasViewport = document.getElementById(CANVAS_VIEWPORT_ID) as HTMLCanvasElement;
-    let mover = new Mover();
-
-    canvasViewport.addEventListener("pointerdown", mover.pointerDownListener);
-    canvasViewport.addEventListener("pointermove", mover.pointerMoveListener);
-
-    canvasViewport.addEventListener("pointerup", mover.pointerDoneListener);
-    canvasViewport.addEventListener("pointercancel", mover.pointerDoneListener);
-    canvasViewport.addEventListener("pointerleave", mover.pointerDoneListener);
-
-    canvasViewport.addEventListener("wheel", mover.wheelListener);
 }

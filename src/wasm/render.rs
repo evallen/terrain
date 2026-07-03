@@ -21,22 +21,10 @@ enum RenderMethod {
 }
 
 const RENDER_METHOD: RenderMethod = RenderMethod::Colors;
-// const RENDER_METHOD: RenderMethod = RenderMethod::Values;
 
 // ==== INITIALIZATION ============================================================================
 
-pub fn init() -> Result<(), JsValue> {
-    let document = web_sys::window()
-        .expect("Couldn't get window")
-        .document()
-        .expect("Couldn't get document");
-
-    let canvas = document
-        .get_element_by_id("canvas")
-        .expect("Couldn't get canvas");
-
-    let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
-
+pub fn init(canvas: &web_sys::HtmlCanvasElement) -> Result<(), JsValue> {
     canvas.set_width(WIDTH);
     canvas.set_height(HEIGHT);
 
