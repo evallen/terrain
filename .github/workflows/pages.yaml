@@ -39,19 +39,19 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: "24"
-        cache: pnpm
+        cache: npm
 
     - name: Setup Pages
       uses: actions/configure-pages@v5
 
     - name: Install pnpm deps
-      run: pnpm i
+      run: npm i
 
     - name: Install wasm-pack
       run: cargo install wasm-pack
 
     - name: Build
-      run: pnpm run build
+      run: npm run build
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
