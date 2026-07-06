@@ -5,12 +5,14 @@ const ZOOM_MIN = 0.1;
 
 // =================================================================================================
 
+export type Coordinate = {
+    x: number,
+    y: number
+}
+
 export type Transform = {
     scale: number,
-    translate: {
-        x: number,
-        y: number
-    };
+    translate: Coordinate;
 }
 
 /** Class for handling movement of the canvas. */
@@ -22,17 +24,21 @@ export class Mover {
     /** The object holding the canvas. */
     canvasViewport: HTMLElement;
 
-    /** Starting clientX coordinate of the mouse upon drag. */
-    startX: number = 0;
-
-    /** Starting clientY coordinate of the mouse upon drag. */
-    startY: number = 0;
-
-    /** Whether or not the user is dragging. */
-    isDragging: boolean;
-
     /** Transform of the canvas. */
     canvasTransform: Transform;
+
+    /** Active pointers. */
+    pointers: Map<number, Coordinate>;
+
+    /** Midpoint of multiple pointers when there are 
+     * multiple pointers down at a time.
+     */
+    pointerMidpoint: Coordinate = { x: 0, y: 0 };
+
+    /** Distance between pointers when two pointers
+     * are touching the screen.
+     */
+    pointerDistance: number = 0;
 
     // === CONSTRUCTOR ============================================================================
 
@@ -40,7 +46,7 @@ export class Mover {
         this.canvas = canvas;
         this.canvasViewport = canvasViewport;
         this.canvasTransform = canvasTransform;
-        this.isDragging = false;
+        this.pointers = new Map();
 
         this.attachCanvasListeners();
     }
@@ -89,7 +95,7 @@ export class Mover {
      * @param viewportPoint The point to zoom into, in pixel coordinates of the canvas viewport. 
      *                      This point should not move on screen after the zoom.
      */
-    zoomByToViewportPoint(factor: number, viewportPoint: { x: number, y: number }) {
+    zoomByToViewportPoint(factor: number, viewportPoint: Coordinate) {
         const canvasBounds = this.canvas.getBoundingClientRect();
         const canvasCenterX = (canvasBounds.left + canvasBounds.right) / 2;
         const canvasCenterY = (canvasBounds.top + canvasBounds.bottom) / 2;
@@ -110,7 +116,7 @@ export class Mover {
      *                    to the center of the canvas.
      *                    This point should not move on screen after the zoom.
      */
-    zoomByToCanvasPoint(factor: number, canvasPoint: { x: number, y: number }) {
+    zoomByToCanvasPoint(factor: number, canvasPoint: Coordinate) {
         let canvasTransform = this.canvasTransform;
 
         canvasTransform.scale *= factor;
@@ -144,31 +150,88 @@ export class Mover {
         return correctedScale / this.canvasTransform.scale;
     }
 
+    static computeMidpointDistance(c0: Coordinate, c1: Coordinate): { midpoint: Coordinate, distance: number } {
+        return {
+            midpoint: {
+                x: (c0.x + c1.x) / 2,
+                y: (c0.y + c1.y) / 2
+            },
+            distance: Math.sqrt((c1.x - c0.x) ** 2 + (c1.y - c0.y) ** 2)
+        };
+    }
+
     // === LISTENERS ==============================================================================
 
     pointerDownListener = (ev: PointerEvent) => {
-        this.startX = ev.clientX;
-        this.startY = ev.clientY;
-
-        this.isDragging = true;
-    }
-
-    pointerMoveListener = (ev: PointerEvent) => {
-        if (!this.isDragging) {
+        // Only support two simultaneous pointers for now.
+        if (this.pointers.size === 2) {
             return;
         }
 
-        let diffX = ev.clientX - this.startX;
-        let diffY = ev.clientY - this.startY;
+        this.pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
 
-        this.pan(diffX, diffY);
+        // Multiple pointers: initialize midpoint, distance info
+        if (this.pointers.size === 2) {
+            const [c0, c1] = [...this.pointers.values()];
+            const result = Mover.computeMidpointDistance(c0, c1);
 
-        this.startX = ev.clientX;
-        this.startY = ev.clientY;
+            this.pointerDistance = result.distance;
+            this.pointerMidpoint = result.midpoint;
+        }
     }
 
-    pointerDoneListener = (_: PointerEvent) => {
-        this.isDragging = false;
+    pointerMoveListener = (ev: PointerEvent) => {
+        if (ev.buttons === 0) {
+            return;
+        }
+
+        // Guard against phantom move event before
+        // 'pointerdown' event.
+        if (!this.pointers.has(ev.pointerId)) {
+            return;
+        }
+
+        let currentPointerCoords = this.pointers.get(ev.pointerId)!;
+
+        if (this.pointers.size === 1) {
+            // One pointer
+
+            let diffX = ev.clientX - currentPointerCoords.x;
+            let diffY = ev.clientY - currentPointerCoords.y;
+
+            this.pan(diffX, diffY);
+
+        } else {
+            // Multiple pointers
+
+            const [c0, c1] = [...this.pointers.values()];
+            const { midpoint: newMidpoint, distance: newDistance } = Mover.computeMidpointDistance(c0, c1);
+
+            // Handle multi-finger drag
+            let diffX = newMidpoint.x - this.pointerMidpoint.x;
+            let diffY = newMidpoint.y - this.pointerMidpoint.y;
+
+            this.pan(diffX, diffY);
+
+            this.pointerMidpoint = newMidpoint;
+
+            // Handle pinch-to-zoom
+            if (this.pointerDistance !== 0) {
+                let factor = newDistance / this.pointerDistance;
+                const constrainedFactor = this.constrainZoomFactor(factor);
+                this.zoomByToViewportPoint(constrainedFactor, this.pointerMidpoint);
+            }
+            this.pointerDistance = newDistance;
+        }
+
+        // Changes entry within the map for the current pointer
+        // being moved.
+        currentPointerCoords.x = ev.clientX;
+        currentPointerCoords.y = ev.clientY;
+    }
+
+    pointerDoneListener = (ev: PointerEvent) => {
+        this.pointers.delete(ev.pointerId);
     }
 
     wheelListener = (ev: WheelEvent) => {
