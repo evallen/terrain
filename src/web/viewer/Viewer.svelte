@@ -15,6 +15,10 @@
     onMount(async () => {
         await init();
         new Mover(canvasViewport!, canvas!, canvasState.transform);
+
+        let ctx = canvas!.getContext("2d")!;
+        ctx.imageSmoothingEnabled = false;
+
         start(canvas!);
     });
 </script>
@@ -27,8 +31,12 @@
 <style>
     canvas {
         display: block;
-        image-rendering: pixelated;
         transform-origin: 50% 50%;
+
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -webkit-crisp-edges;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: pixelated;
     }
 
     #canvas-viewport {
