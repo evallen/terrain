@@ -91,7 +91,7 @@ export class Mover {
      * Zoom into a point on the canvas group by the given factor. Point given
      * in coordinates of the canvas viewport (i.e., the entire area on screen
      * where the canvas group may be shown).
-     * @param factor The scale to multiply the current transform martrix by.
+     * @param factor The scale to multiply the current transform matrix by.
      * @param viewportPoint The point to zoom into, in pixel coordinates of the canvas viewport. 
      *                      This point should not move on screen after the zoom.
      */
@@ -111,7 +111,7 @@ export class Mover {
     /**
      * Zoom into a point on the canvas group by the given factor. Point given
      * relative to the center of the canvas group.
-     * @param factor The scale to multiply the current transform martrix by.
+     * @param factor The scale to multiply the current transform matrix by.
      * @param canvasPoint The point to zoom into, in pixel coordinates relative
      *                    to the center of the canvas.
      *                    This point should not move on screen after the zoom.

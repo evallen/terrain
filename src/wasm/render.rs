@@ -8,7 +8,7 @@ use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
 
 const SEED: u32 = 45;
-const PIXEL_SCALING_FACTOR: f64 = 250.0 / 5.0;
+const PIXELS_PER_NOISE_UNIT: f64 = 50.0;
 
 // TODO: Clean this up
 enum RenderMethod {
@@ -20,7 +20,7 @@ enum RenderMethod {
 }
 
 #[derive(Debug, Clone)]
-pub struct CanvasInfo {
+struct CanvasInfo {
     /// The width of the canvas, in pixels.
     pub width: u32,
 
@@ -126,12 +126,12 @@ fn fill_canvas(ctx: &web_sys::CanvasRenderingContext2d, info: &CanvasInfo) -> Re
     let fbm = Fbm::<OpenSimplex>::new(SEED);
 
     let x_bounds = (
-        info.x as f64 / PIXEL_SCALING_FACTOR,
-        (info.x + info.width as i32) as f64 / PIXEL_SCALING_FACTOR,
+        info.x as f64 / PIXELS_PER_NOISE_UNIT,
+        (info.x + info.width as i32) as f64 / PIXELS_PER_NOISE_UNIT,
     );
     let y_bounds = (
-        info.y as f64 / PIXEL_SCALING_FACTOR,
-        (info.y + info.height as i32) as f64 / PIXEL_SCALING_FACTOR,
+        info.y as f64 / PIXELS_PER_NOISE_UNIT,
+        (info.y + info.height as i32) as f64 / PIXELS_PER_NOISE_UNIT,
     );
 
     let noise_map = PlaneMapBuilder::new(fbm)

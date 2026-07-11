@@ -8,6 +8,7 @@
     import init, { setup_canvas_tile } from "../../../pkg/terrain";
     import { Mover } from "./navigation.svelte";
 
+    // Fields (width, height, x, y) must match the wasm setup_canvas_tile params.
     type CanvasInfo = {
         element: HTMLCanvasElement | null;
         width: number;
@@ -18,19 +19,19 @@
 
     const full_canvas_size = CANVAS_SIZE + CANVAS_BORDER_WIDTH;
 
-    let canvases: CanvasInfo[] = $state([]);
-
-    [-1, 0, 1].forEach((x) => {
-        [-1, 0, 1].forEach((y) => {
-            canvases.push({
-                element: null,
-                width: full_canvas_size,
-                height: full_canvas_size,
-                x: 250 * (x - 1),
-                y: 250 * (y - 1),
-            });
-        });
-    });
+    let canvases: CanvasInfo[] = $state(
+        [-1, 0, 1].flatMap((x) =>
+            [-1, 0, 1].flatMap((y) => [
+                {
+                    element: null,
+                    width: full_canvas_size,
+                    height: full_canvas_size,
+                    x: (CANVAS_SIZE / 2) * (x - 1),
+                    y: (CANVAS_SIZE / 2) * (y - 1),
+                },
+            ]),
+        ),
+    );
 
     let canvasViewport: HTMLDivElement | null = $state(null);
     let canvasGroup: HTMLDivElement | null = $state(null);
@@ -42,7 +43,11 @@
     );
 
     onMount(async () => {
+        // Need to make sure the WASM is set up before this, so we make a second,
+        // (possibly-redundant) init() call.
+        // Without this, there is an occasional race-condition error.
         await init();
+
         new Mover(canvasViewport!, canvasGroup!, canvasState.transform);
 
         canvases.forEach((canvasInfo) => {
