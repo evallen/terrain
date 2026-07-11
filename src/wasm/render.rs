@@ -7,9 +7,8 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
 
-const WIDTH: u32 = 500;
-const HEIGHT: u32 = 500;
 const SEED: u32 = 45;
+const PIXEL_SCALING_FACTOR: f64 = 250.0 / 5.0;
 
 // TODO: Clean this up
 enum RenderMethod {
@@ -20,20 +19,38 @@ enum RenderMethod {
     Values,
 }
 
+#[derive(Debug, Clone)]
+pub struct CanvasInfo {
+    /// The width of the canvas, in pixels.
+    pub width: u32,
+
+    /// The height of the canvas, in pixels.
+    pub height: u32,
+
+    /// The x-coordinate of the top left of the canvas.
+    pub x: i32,
+
+    /// The y-coordinate of the top left of the canvas.
+    pub y: i32,
+}
+
 const RENDER_METHOD: RenderMethod = RenderMethod::Colors;
 
 // ==== INITIALIZATION ============================================================================
 
-pub fn init(canvas: &web_sys::HtmlCanvasElement) -> Result<(), JsValue> {
-    canvas.set_width(WIDTH);
-    canvas.set_height(HEIGHT);
+pub fn setup_canvas_tile(
+    canvas: &web_sys::HtmlCanvasElement,
+    info: &CanvasInfo,
+) -> Result<(), JsValue> {
+    canvas.set_width(info.width);
+    canvas.set_height(info.height);
 
     let ctx = canvas
         .get_context("2d")?
         .expect("Couldn't get 2D canvas context")
         .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
-    fill_canvas(&ctx)?;
+    fill_canvas(&ctx, info)?;
 
     Ok(())
 }
@@ -105,16 +122,28 @@ fn render_image(plane: &NoiseMap) -> Vec<u8> {
     }
 }
 
-fn fill_canvas(ctx: &web_sys::CanvasRenderingContext2d) -> Result<(), JsValue> {
+fn fill_canvas(ctx: &web_sys::CanvasRenderingContext2d, info: &CanvasInfo) -> Result<(), JsValue> {
     let fbm = Fbm::<OpenSimplex>::new(SEED);
+
+    let x_bounds = (
+        info.x as f64 / PIXEL_SCALING_FACTOR,
+        (info.x + info.width as i32) as f64 / PIXEL_SCALING_FACTOR,
+    );
+    let y_bounds = (
+        info.y as f64 / PIXEL_SCALING_FACTOR,
+        (info.y + info.height as i32) as f64 / PIXEL_SCALING_FACTOR,
+    );
+
     let noise_map = PlaneMapBuilder::new(fbm)
-        .set_size(WIDTH as usize, HEIGHT as usize)
-        .set_x_bounds(-5.0, 5.0)
-        .set_y_bounds(-5.0, 5.0)
+        .set_size(info.width as usize, info.height as usize)
+        .set_x_bounds(x_bounds.0, x_bounds.1)
+        .set_y_bounds(y_bounds.0, y_bounds.1)
         .build();
 
-    let image_data =
-        web_sys::ImageData::new_with_u8_clamped_array(Clamped(&render_image(&noise_map)), WIDTH)?;
+    let image_data = web_sys::ImageData::new_with_u8_clamped_array(
+        Clamped(&render_image(&noise_map)),
+        info.width,
+    )?;
 
     ctx.put_image_data(&image_data, 0.0, 0.0)?;
 

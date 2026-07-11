@@ -19,13 +19,13 @@ export type Transform = {
 export class Mover {
 
     /** The canvas object holding the map. */
-    canvas: HTMLCanvasElement;
+    canvasGroup: HTMLDivElement;
 
     /** The object holding the canvas. */
     canvasViewport: HTMLElement;
 
-    /** Transform of the canvas. */
-    canvasTransform: Transform;
+    /** Transform of the canvas group. */
+    canvasGroupTransform: Transform;
 
     /** Active pointers. */
     pointers: Map<number, Coordinate>;
@@ -42,10 +42,10 @@ export class Mover {
 
     // === CONSTRUCTOR ============================================================================
 
-    constructor(canvasViewport: HTMLDivElement, canvas: HTMLCanvasElement, canvasTransform: Transform) {
-        this.canvas = canvas;
+    constructor(canvasViewport: HTMLDivElement, canvasGroup: HTMLDivElement, canvasTransform: Transform) {
+        this.canvasGroup = canvasGroup;
         this.canvasViewport = canvasViewport;
-        this.canvasTransform = canvasTransform;
+        this.canvasGroupTransform = canvasTransform;
         this.pointers = new Map();
 
         this.attachCanvasListeners();
@@ -65,38 +65,38 @@ export class Mover {
     // === UTILITIES ==============================================================================
 
     /**
-     * Pan the canvas a certain number of pixels in
+     * Pan the canvas group a certain number of pixels in
      * the x and y directions.
      * @param x Pixels in the x direction to pan.
      * @param y Pixels in the y direction to pan.
      */
     pan(x: number, y: number) {
-        let transform = this.canvasTransform;
+        let transform = this.canvasGroupTransform;
 
         transform.translate.x += x;
         transform.translate.y += y;
 
-        this.canvasTransform = transform;
+        this.canvasGroupTransform = transform;
     }
 
     /**
-     * Zoom into the center of the canvas by the given factor.
+     * Zoom into the center of the canvas group by the given factor.
      * @param factor The scale to multiply the current transform matrix by.
      */
     zoomBy(factor: number) {
-        this.canvasTransform.scale *= factor;
+        this.canvasGroupTransform.scale *= factor;
     }
 
     /**
-     * Zoom into a point on the canvas by the given factor. Point given
+     * Zoom into a point on the canvas group by the given factor. Point given
      * in coordinates of the canvas viewport (i.e., the entire area on screen
-     * where the canvas may be shown).
-     * @param factor The scale to multiply the curarent transform martrix by.
+     * where the canvas group may be shown).
+     * @param factor The scale to multiply the current transform martrix by.
      * @param viewportPoint The point to zoom into, in pixel coordinates of the canvas viewport. 
      *                      This point should not move on screen after the zoom.
      */
     zoomByToViewportPoint(factor: number, viewportPoint: Coordinate) {
-        const canvasBounds = this.canvas.getBoundingClientRect();
+        const canvasBounds = this.canvasGroup.getBoundingClientRect();
         const canvasCenterX = (canvasBounds.left + canvasBounds.right) / 2;
         const canvasCenterY = (canvasBounds.top + canvasBounds.bottom) / 2;
 
@@ -109,23 +109,23 @@ export class Mover {
     }
 
     /**
-     * Zoom into a point on the canvas by the given factor. Point given
-     * relative to the center of the canvas.
-     * @param factor The scale to multiply the curarent transform martrix by.
+     * Zoom into a point on the canvas group by the given factor. Point given
+     * relative to the center of the canvas group.
+     * @param factor The scale to multiply the current transform martrix by.
      * @param canvasPoint The point to zoom into, in pixel coordinates relative
      *                    to the center of the canvas.
      *                    This point should not move on screen after the zoom.
      */
     zoomByToCanvasPoint(factor: number, canvasPoint: Coordinate) {
-        let canvasTransform = this.canvasTransform;
+        let canvasTransform = this.canvasGroupTransform;
 
         canvasTransform.scale *= factor;
 
         // The key property of this function is that it *doesn't move
         // whatever pixel the mouse is on.*
         //
-        // A generic scaling of the canvas moves all the pixels
-        // of the canvas outwards from the transform origin.
+        // A generic scaling of the canvas group moves all the pixels
+        // of the canvas group outwards from the transform origin.
         //
         // We can thus compute how far the pixel under the cursor moves
         // under scaling, and then apply the opposite translation 
@@ -141,13 +141,13 @@ export class Mover {
         canvasTransform.translate.x -= diffX;
         canvasTransform.translate.y -= diffY;
 
-        this.canvasTransform = canvasTransform;
+        this.canvasGroupTransform = canvasTransform;
     }
 
     constrainZoomFactor(factor: number): number {
-        const newScale = this.canvasTransform.scale * factor;
+        const newScale = this.canvasGroupTransform.scale * factor;
         const correctedScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, newScale));
-        return correctedScale / this.canvasTransform.scale;
+        return correctedScale / this.canvasGroupTransform.scale;
     }
 
     static computeMidpointDistance(c0: Coordinate, c1: Coordinate): { midpoint: Coordinate, distance: number } {
