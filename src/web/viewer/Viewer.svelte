@@ -5,7 +5,7 @@
 
 <script lang="ts">
     import { onMount } from "svelte";
-    import init, { setup_canvas_tile } from "../../../pkg/terrain";
+    import init, { compute_tile_pixels } from "../../../pkg/terrain";
     import { Mover } from "./navigation.svelte";
 
     // Fields (width, height, x, y) must match the wasm setup_canvas_tile params.
@@ -51,14 +51,24 @@
         new Mover(canvasViewport!, canvasGroup!, canvasState.transform);
 
         canvases.forEach((canvasInfo) => {
-            canvasInfo.element!.getContext("2d")!.imageSmoothingEnabled = false;
-            setup_canvas_tile(
-                canvasInfo.element!,
+            canvasInfo.element!.width = CANVAS_SIZE;
+            canvasInfo.element!.height = CANVAS_SIZE;
+
+            let ctx = canvasInfo.element!.getContext("2d")!;
+            ctx.imageSmoothingEnabled = false;
+
+            // @ts-expect-error because `compute_tile_pixels`
+            // doesn't specify what kind of ArrayBuffer it provides, causing
+            // a TS error. But it is ArrayBuffer.
+            const pixels: Uint8ClampedArray<ArrayBuffer> = compute_tile_pixels(
                 canvasInfo.width,
                 canvasInfo.height,
                 canvasInfo.x,
                 canvasInfo.y,
             );
+
+            const imageData = new ImageData(pixels, canvasInfo.width);
+            ctx.putImageData(imageData, 0, 0);
         });
     });
 </script>
