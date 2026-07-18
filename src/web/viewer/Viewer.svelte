@@ -1,33 +1,32 @@
 <script lang="ts" module>
     export const CANVAS_SIZE = 500;
     export const CANVAS_BORDER_WIDTH = 2;
+    export const NUM_WORKERS = 8;
 </script>
 
 <script lang="ts">
     import { onMount } from "svelte";
-    import init, { compute_tile_pixels } from "../../../pkg/terrain";
     import { Mover } from "./navigation.svelte";
-
-    // Fields (width, height, x, y) must match the wasm setup_canvas_tile params.
-    type CanvasInfo = {
-        element: HTMLCanvasElement | null;
-        width: number;
-        height: number;
-        x: number;
-        y: number;
-    };
+    import {
+        type CanvasInfo,
+        type CanvasPositionInfo,
+        type TileData,
+    } from "../types/types";
+    import { WorkerPool } from "../workers/threadpool";
 
     const full_canvas_size = CANVAS_SIZE + CANVAS_BORDER_WIDTH;
 
     let canvases: CanvasInfo[] = $state(
-        [-1, 0, 1].flatMap((x) =>
-            [-1, 0, 1].flatMap((y) => [
+        Array.from({ length: 5 }, (_, i) => i - 2).flatMap((x) =>
+            Array.from({ length: 5 }, (_, i) => i - 2).flatMap((y) => [
                 {
                     element: null,
-                    width: full_canvas_size,
-                    height: full_canvas_size,
-                    x: (CANVAS_SIZE / 2) * (x - 1),
-                    y: (CANVAS_SIZE / 2) * (y - 1),
+                    pos: {
+                        width: full_canvas_size,
+                        height: full_canvas_size,
+                        x: (CANVAS_SIZE / 2) * (x - 1),
+                        y: (CANVAS_SIZE / 2) * (y - 1),
+                    },
                 },
             ]),
         ),
@@ -43,31 +42,24 @@
     );
 
     onMount(async () => {
-        // Need to make sure the WASM is set up before this, so we make a second,
-        // (possibly-redundant) init() call.
-        // Without this, there is an occasional race-condition error.
-        await init();
-
         new Mover(canvasViewport!, canvasGroup!, canvasState.transform);
 
-        canvases.forEach((canvasInfo) => {
+        let workerPool = new WorkerPool<CanvasPositionInfo, TileData>(
+            NUM_WORKERS,
+            new URL("../workers/chunk_generator.ts", import.meta.url),
+        );
+
+        canvases.forEach(async (canvasInfo) => {
             canvasInfo.element!.width = CANVAS_SIZE;
             canvasInfo.element!.height = CANVAS_SIZE;
 
             let ctx = canvasInfo.element!.getContext("2d")!;
             ctx.imageSmoothingEnabled = false;
 
-            // @ts-expect-error because `compute_tile_pixels`
-            // doesn't specify what kind of ArrayBuffer it provides, causing
-            // a TS error. But it is ArrayBuffer.
-            const pixels: Uint8ClampedArray<ArrayBuffer> = compute_tile_pixels(
-                canvasInfo.width,
-                canvasInfo.height,
-                canvasInfo.x,
-                canvasInfo.y,
+            const pixels: TileData = await workerPool.submit(
+                $state.snapshot(canvasInfo.pos),
             );
-
-            const imageData = new ImageData(pixels, canvasInfo.width);
+            const imageData = new ImageData(pixels, canvasInfo.pos.width);
             ctx.putImageData(imageData, 0, 0);
         });
     });
@@ -83,7 +75,7 @@
             <canvas
                 bind:this={canvasInfo.element}
                 id="canvas-{i}"
-                style:transform={`translate(${canvasInfo.x}px, ${canvasInfo.y}px)`}
+                style:transform={`translate(${canvasInfo.pos.x}px, ${canvasInfo.pos.y}px)`}
             ></canvas>
         {/each}
     </div>
