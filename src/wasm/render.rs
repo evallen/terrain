@@ -1,12 +1,14 @@
 use noise::utils::{NoiseMap, NoiseMapBuilder, PlaneMapBuilder};
-use noise::{Fbm, OpenSimplex};
+use noise::{Fbm, NoiseFn, OpenSimplex};
+
+use glam::DVec2;
 
 use color_hex::color_from_hex;
 
 use wasm_bindgen::Clamped;
 
 const SEED: u32 = 45;
-const PIXELS_PER_NOISE_UNIT: f64 = 50.0;
+const PIXELS_PER_NOISE_UNIT: f64 = 200.0;
 
 // TODO: Clean this up
 enum RenderMethod {
@@ -33,11 +35,37 @@ pub struct CanvasInfo {
 }
 
 const RENDER_METHOD: RenderMethod = RenderMethod::Colors;
+//const RENDER_METHOD: RenderMethod = RenderMethod::Values;
 
 // ==== INITIALIZATION ============================================================================
 
+#[derive(Debug)]
+struct IslandNoise {
+    fbm: Fbm<OpenSimplex>,
+}
+
+impl IslandNoise {
+    fn new() -> IslandNoise {
+        IslandNoise {
+            fbm: Fbm::<OpenSimplex>::new(SEED),
+        }
+    }
+}
+
+impl NoiseFn<f64, 3> for IslandNoise {
+    fn get(&self, point: [f64; 3]) -> f64 {
+        let pointVec = DVec2::new(point[0], point[1]);
+        let offset = pointVec.distance(DVec2::new(0.0, 0.0));
+
+        let result = self.fbm.get(point) * 2.0 - 0.5 * offset + 0.75;
+        // let result = self.fbm.get(point);
+
+        result.clamp(-1.0, 1.0)
+    }
+}
+
 pub fn compute_tile_pixels(info: &CanvasInfo) -> Clamped<Vec<u8>> {
-    let fbm = Fbm::<OpenSimplex>::new(SEED);
+    let island_noise = IslandNoise::new();
 
     let x_bounds = (
         info.x as f64 / PIXELS_PER_NOISE_UNIT,
@@ -48,7 +76,7 @@ pub fn compute_tile_pixels(info: &CanvasInfo) -> Clamped<Vec<u8>> {
         (info.y + info.height as i32) as f64 / PIXELS_PER_NOISE_UNIT,
     );
 
-    let noise_map = PlaneMapBuilder::new(fbm)
+    let noise_map = PlaneMapBuilder::new(island_noise)
         .set_size(info.width as usize, info.height as usize)
         .set_x_bounds(x_bounds.0, x_bounds.1)
         .set_y_bounds(y_bounds.0, y_bounds.1)
@@ -85,10 +113,10 @@ impl TerrainLayer {
         assert!(h >= 0.0 && h <= 1.0);
 
         match h {
-            h if h < 0.48 => TerrainLayer::Ocean,
-            h if h <= 0.50 => TerrainLayer::Beach,
-            h if h <= 0.54 => TerrainLayer::Land,
-            h if h <= 0.60 => TerrainLayer::Mountain,
+            h if h <= 0.0 => TerrainLayer::Ocean,
+            h if h <= 0.1 => TerrainLayer::Beach,
+            h if h <= 0.4 => TerrainLayer::Land,
+            h if h <= 0.8 => TerrainLayer::Mountain,
             _ => TerrainLayer::Icecap,
         }
     }
@@ -99,7 +127,7 @@ fn render_image_colors(plane: &NoiseMap) -> Vec<u8> {
     plane
         .iter()
         .flat_map(|h| {
-            let normalized = (h + 1.0) / 2.0;
+            let normalized = h.clamp(0.0, 1.0);
             TerrainLayer::from_height(normalized).color()
         })
         .collect()

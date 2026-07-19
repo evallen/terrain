@@ -17,8 +17,8 @@
     const full_canvas_size = CANVAS_SIZE + CANVAS_BORDER_WIDTH;
 
     let canvases: CanvasInfo[] = $state(
-        Array.from({ length: 5 }, (_, i) => i - 2).flatMap((x) =>
-            Array.from({ length: 5 }, (_, i) => i - 2).flatMap((y) => [
+        Array.from({ length: 3 }, (_, i) => i - 1).flatMap((x) =>
+            Array.from({ length: 3 }, (_, i) => i - 1).flatMap((y) => [
                 {
                     element: null,
                     pos: {
