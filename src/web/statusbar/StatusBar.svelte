@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { CanvasState } from "../App.svelte";
+    import { populateCanvases } from "../viewer/Viewer.svelte";
 
     interface Props {
         canvasState: CanvasState;
@@ -8,6 +9,8 @@
     let { canvasState }: Props = $props();
 
     let scalePercent = $derived(canvasState.transform.scale * 100);
+
+    let seed = $state(0);
 </script>
 
 <div>
@@ -15,7 +18,9 @@
         <strong>Zoom: </strong>
         {scalePercent.toFixed(1)}%
     </p>
-    <button>Regenerate with new seed</button>
+    <button onclick={() => populateCanvases(seed++)}
+        >Regenerate with new seed: {seed}</button
+    >
 </div>
 
 <style>

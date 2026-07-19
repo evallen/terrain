@@ -1,7 +1,7 @@
 import init, { compute_tile_pixels } from "../../../pkg/terrain";
-import { type CanvasPositionInfo, type TileData } from "../types/types";
+import { type TileData, type TileQuery } from "../types/types";
 
-self.onmessage = async function (event: MessageEvent<CanvasPositionInfo>) {
+self.onmessage = async function (event: MessageEvent<TileQuery>) {
     // Need to make sure the WASM is set up before this, so we make a second,
     // (possibly-redundant) init() call.
     // Without this, there is an occasional race-condition error.
@@ -10,10 +10,9 @@ self.onmessage = async function (event: MessageEvent<CanvasPositionInfo>) {
     self.postMessage(result);
 }
 
-function run(canvasInfo: CanvasPositionInfo): TileData {
-    console.log(`Received chunk to compute: ${canvasInfo}`);
-    const result = compute_tile_pixels(canvasInfo.width, canvasInfo.height, canvasInfo.x, canvasInfo.y);
-    console.log(`Done computing chunk!`);
+function run(tileQuery: TileQuery): TileData {
+    const pos = tileQuery.pos
+    const result = compute_tile_pixels(tileQuery.options.seed, pos.width, pos.height, pos.x, pos.y);
 
     // @ts-expect-error because `compute_tile_pixels`
     // doesn't specify what kind of ArrayBuffer it provides, causing

@@ -56,15 +56,12 @@ export class WorkerPool<Input, Output> {
     }
 
     private beginNextTaskIfPossible() {
-        let worker = this.idleWorkers.shift();
-        if (!worker) {
+        if (this.idleWorkers.length == 0 || this.taskQueue.length == 0) {
             return;
         }
 
-        let task = this.taskQueue.shift();
-        if (!task) {
-            return;
-        }
+        let worker = this.idleWorkers.shift()!;
+        let task = this.taskQueue.shift()!;
 
         this.promiseHandlerMap.set(worker, task.handlers);
         worker.postMessage(task.input);

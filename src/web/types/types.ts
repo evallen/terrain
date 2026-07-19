@@ -1,3 +1,7 @@
+export type GenerationOptions = {
+    seed: number;
+}
+
 // Fields (width, height, x, y) must match the wasm setup_canvas_tile params.
 export type CanvasPositionInfo = {
     width: number;
@@ -9,6 +13,12 @@ export type CanvasPositionInfo = {
 export type CanvasInfo = {
     element: HTMLCanvasElement | null;
     pos: CanvasPositionInfo;
+    loading: boolean;
 };
 
 export type TileData = Uint8ClampedArray<ArrayBuffer>;
+
+export type TileQuery = {
+    pos: CanvasPositionInfo;
+    options: GenerationOptions;
+}

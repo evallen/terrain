@@ -7,7 +7,6 @@ use color_hex::color_from_hex;
 
 use wasm_bindgen::Clamped;
 
-const SEED: u32 = 45;
 const PIXELS_PER_NOISE_UNIT: f64 = 200.0;
 
 // TODO: Clean this up
@@ -20,7 +19,18 @@ enum RenderMethod {
 }
 
 #[derive(Debug, Clone)]
-pub struct CanvasInfo {
+pub struct GenerationOptions {
+    pub seed: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct TileQuery {
+    pub pos: CanvasPositionInfo,
+    pub options: GenerationOptions,
+}
+
+#[derive(Debug, Clone)]
+pub struct CanvasPositionInfo {
     /// The width of the canvas, in pixels.
     pub width: u32,
 
@@ -45,39 +55,39 @@ struct IslandNoise {
 }
 
 impl IslandNoise {
-    fn new() -> IslandNoise {
+    fn new(seed: u32) -> IslandNoise {
         IslandNoise {
-            fbm: Fbm::<OpenSimplex>::new(SEED),
+            fbm: Fbm::<OpenSimplex>::new(seed),
         }
     }
 }
 
 impl NoiseFn<f64, 3> for IslandNoise {
     fn get(&self, point: [f64; 3]) -> f64 {
-        let pointVec = DVec2::new(point[0], point[1]);
-        let offset = pointVec.distance(DVec2::new(0.0, 0.0));
+        let point_vec = DVec2::new(point[0], point[1]);
+        let offset = point_vec.distance(DVec2::new(0.0, 0.0));
 
         let result = self.fbm.get(point) * 2.0 - 0.5 * offset + 0.75;
-        // let result = self.fbm.get(point);
 
         result.clamp(-1.0, 1.0)
     }
 }
 
-pub fn compute_tile_pixels(info: &CanvasInfo) -> Clamped<Vec<u8>> {
-    let island_noise = IslandNoise::new();
+pub fn compute_tile_pixels(info: &TileQuery) -> Clamped<Vec<u8>> {
+    let pos = &info.pos;
+    let island_noise = IslandNoise::new(info.options.seed);
 
     let x_bounds = (
-        info.x as f64 / PIXELS_PER_NOISE_UNIT,
-        (info.x + info.width as i32) as f64 / PIXELS_PER_NOISE_UNIT,
+        pos.x as f64 / PIXELS_PER_NOISE_UNIT,
+        (pos.x + pos.width as i32) as f64 / PIXELS_PER_NOISE_UNIT,
     );
     let y_bounds = (
-        info.y as f64 / PIXELS_PER_NOISE_UNIT,
-        (info.y + info.height as i32) as f64 / PIXELS_PER_NOISE_UNIT,
+        pos.y as f64 / PIXELS_PER_NOISE_UNIT,
+        (pos.y + pos.height as i32) as f64 / PIXELS_PER_NOISE_UNIT,
     );
 
     let noise_map = PlaneMapBuilder::new(island_noise)
-        .set_size(info.width as usize, info.height as usize)
+        .set_size(pos.width as usize, pos.height as usize)
         .set_x_bounds(x_bounds.0, x_bounds.1)
         .set_y_bounds(y_bounds.0, y_bounds.1)
         .build();
