@@ -1,6 +1,5 @@
 <script lang="ts" module>
-    export const CANVAS_SIZE = 500;
-    export const CANVAS_BORDER_WIDTH = 2;
+    export const CANVAS_SIZE = 1500;
     export const NUM_WORKERS = 8;
 
     import {
@@ -9,31 +8,23 @@
         type TileQuery,
     } from "../types/types";
 
-    const full_canvas_size = CANVAS_SIZE + CANVAS_BORDER_WIDTH;
-
     let workerPool = new WorkerPool<TileQuery, TileData>(
         NUM_WORKERS,
         new URL("../workers/chunk_generator.ts", import.meta.url),
     );
 
-    let canvases: CanvasInfo[] = $state(
-        Array.from({ length: 3 }, (_, i) => i - 1).flatMap((x) =>
-            Array.from({ length: 3 }, (_, i) => i - 1).flatMap((y) => [
-                {
-                    element: null,
-                    pos: {
-                        width: full_canvas_size,
-                        height: full_canvas_size,
-                        x: CANVAS_SIZE * (x - 0.5),
-                        y: CANVAS_SIZE * (y - 0.5),
-                    },
-                    loading: true,
-                },
-            ]),
-        ),
-    );
+    let canvasInfo: CanvasInfo = $state({
+        element: null,
+        pos: {
+            width: CANVAS_SIZE,
+            height: CANVAS_SIZE,
+            x: CANVAS_SIZE * -0.5,
+            y: CANVAS_SIZE * -0.5,
+        },
+        loading: true,
+    });
 
-    async function populateCanvas(
+    async function _populateCanvas(
         seed: number,
         canvasInfo: CanvasInfo,
         workerPool: WorkerPool<TileQuery, TileData>,
@@ -50,11 +41,8 @@
         ctx.putImageData(imageData, 0, 0);
     }
 
-    export async function populateCanvases(seed: number) {
-        console.log("populate canvas with seed " + seed);
-        canvases.forEach((canvasInfo) => {
-            canvasInfo.loading = true;
-        });
+    export async function populateCanvas(seed: number) {
+        canvasInfo.loading = true;
 
         // Really, what we want is just to populateCanvas()
         // for each canvas. But that causes synchronous lag
@@ -65,9 +53,7 @@
         // essentially force this to occur after the next frame.
         requestAnimationFrame(() => {
             setTimeout(() => {
-                canvases.forEach((canvasInfo) => {
-                    populateCanvas(seed, canvasInfo, workerPool);
-                });
+                _populateCanvas(seed, canvasInfo, workerPool);
             }, 0);
         });
     }
@@ -90,15 +76,13 @@
     onMount(async () => {
         new Mover(canvasViewport!, canvasGroup!, canvasState.transform);
 
-        canvases.forEach((canvasInfo) => {
-            canvasInfo.element!.width = CANVAS_SIZE;
-            canvasInfo.element!.height = CANVAS_SIZE;
+        canvasInfo.element!.width = CANVAS_SIZE;
+        canvasInfo.element!.height = CANVAS_SIZE;
 
-            let ctx = canvasInfo.element!.getContext("2d")!;
-            ctx.imageSmoothingEnabled = false;
-        });
+        let ctx = canvasInfo.element!.getContext("2d")!;
+        ctx.imageSmoothingEnabled = false;
 
-        await populateCanvases(45);
+        await populateCanvas(45);
     });
 </script>
 
@@ -108,18 +92,16 @@
         style:transform={canvasGroupTransformStr}
         id="canvas-group"
     >
-        {#each canvases as canvasInfo, i}
+        <div
+            class="canvas-wrapper"
+            style:transform={`translate(${canvasInfo.pos.x}px, ${canvasInfo.pos.y}px)`}
+        >
+            <canvas bind:this={canvasInfo.element} id="canvas-main"></canvas>
             <div
-                class="canvas-wrapper"
-                style:transform={`translate(${canvasInfo.pos.x}px, ${canvasInfo.pos.y}px)`}
-            >
-                <canvas bind:this={canvasInfo.element} id="canvas-{i}"></canvas>
-                <div
-                    class="canvas-spinner"
-                    class:loading={canvasInfo.loading}
-                ></div>
-            </div>
-        {/each}
+                class="canvas-spinner"
+                class:loading={canvasInfo.loading}
+            ></div>
+        </div>
     </div>
 </div>
 
